@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora de Reajuste de Plano de Saúde</title>
+  <style>
+    :root {
+      --blue:        #1B4F8A;
+      --blue-dark:   #0d3060;
+      --blue-light:  #2E6FC8;
+      --blue-pale:   #EBF2FF;
+      --red:         #C0392B;
+      --red-pale:    #FFF5F5;
+      --orange:      #D4680A;
+      --orange-pale: #FFF3E0;
+      --green:       #1E7A44;
+      --green-pale:  #F0FFF4;
+      --gray-100:    #F8F9FA;
+      --gray-200:    #E9ECEF;
+      --gray-300:    #DEE2E6;
+      --gray-500:    #ADB5BD;
+      --gray-600:    #6C757D;
+      --gray-800:    #343A40;
+      --text:        #1A1A2E;
+      --radius:      14px;
+      --shadow:      0 4px 24px rgba(27,79,138,.13);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+      background: #EEF2F7;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%);
+      color: #fff;
+      padding: 28px 20px 24px;
+      text-align: center;
+    }
+    .header-icon { font-size: 2rem; margin-bottom: 8px; }
+    .header h1  { font-size: 1.35rem; font-weight: 800; letter-spacing: -.3px; }
+    .header p   { font-size: .88rem; opacity: .82; margin-top: 4px; }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Progress ── */
+    .progress-wrap { margin-bottom: 28px; }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .stepper-track {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      height: 3px;
+      background: var(--gray-300);
+      border-radius: 99px;
+      z-index: 0;
+    }
+    .stepper-fill {
+      height: 100%;
+      background: var(--blue);
+      border-radius: 99px;
+      transition: width .4s ease;
+    }
+    .step-node {
+      width: 33px;
+      height: 33px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .78rem;
+      font-weight: 700;
+      border: 2.5px solid var(--gray-300);
+      background: #fff;
+      color: var(--gray-600);
+      position: relative;
+      z-index: 1;
+      transition: all .3s;
+      flex-shrink: 0;
+    }
+    .step-node.active   { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .step-node.done     { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .step-node.done::after { content: '✓'; }
+
+    .stepper-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 7px;
+    }
+    .stepper-label {
+      font-size: .68rem;
+      color: var(--gray-600);
+      text-align: center;
+      width: 64px;
+      line-height: 1.3;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+    }
+    @media (max-width: 480px) { .card { padding: 24px 18px; } }
+
+    .card-eyebrow {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 6px;
+    }
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .card-sub {
+      font-size: .87rem;
+      color: var(--gray-600);
+      margin-bottom: 26px;
+      line-height: 1.55;
+    }
+    .divider {
+      height: 1px;
+      background: var(--gray-200);
+      margin: 22px 0;
+    }
+
+    /* ── Option cards (plan type) ── */
+    .option-grid { display: flex; flex-direction: column; gap: 12px; }
+    .opt {
+      border: 2px solid var(--gray-300);
+      border-radius: 11px;
+      padding: 16px 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: all .2s;
+      user-select: none;
+    }
+    .opt:hover         { border-color: var(--blue-light); background: var(--blue-pale); }
+    .opt.selected      { border-color: var(--blue); background: var(--blue-pale); }
+    .opt-icon          { font-size: 1.6rem; flex-shrink: 0; line-height: 1; margin-top: 1px; }
+    .opt-title         { font-size: .95rem; font-weight: 700; margin-bottom: 2px; }
+    .opt-desc          { font-size: .82rem; color: var(--gray-600); line-height: 1.45; }
+
+    /* ── Form elements ── */
+    .fg { margin-bottom: 20px; }
+    .fg label {
+      display: block;
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 7px;
+    }
+    .fg .hint { font-size: .78rem; font-weight: 400; color: var(--gray-600); }
+
+    input[type="number"],
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 9px;
+      font-size: .98rem;
+      color: var(--text);
+      background: #fff;
+      transition: border-color .2s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(27,79,138,.12);
+    }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .curr-wrap { position: relative; }
+    .curr-prefix {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--gray-600);
+      pointer-events: none;
+    }
+    .curr-wrap input { padding-left: 38px; }
+
+    /* ── Radio pills ── */
+    .radio-group { display: flex; flex-direction: column; gap: 9px; }
+    .rpill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: .88rem;
+      transition: all .2s;
+      user-select: none;
+    }
+    .rpill:hover   { border-color: var(--blue-light); background: var(--blue-pale); }
+    .rpill.selected { border-color: var(--blue); background: var(--blue-pale); font-weight: 600; }
+    .rpill input[type="radio"] { accent-color: var(--blue); width: 16px; height: 16px; flex-shrink: 0; }
+
+    /* ── Inline preview ── */
+    .inline-info {
+      background: var(--gray-100);
+      border-radius: 9px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+    }
+    .inline-info-label { font-size: .83rem; color: var(--gray-600); }
+    .inline-info-value { font-size: 1.05rem; font-weight: 800; color: var(--blue); }
+
+    /* ── Nav buttons ── */
+    .nav { display: flex; gap: 12px; margin-top: 28px; }
+    .btn {
+      padding: 13px 22px;
+      border-radius: 9px;
+      font-size: .97rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+      line-height: 1;
+    }
+    .btn-primary { background: var(--blue); color: #fff; flex: 1; }
+    .btn-primary:hover { background: var(--blue-dark); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--blue);
+      border: 1.5px solid var(--gray-300);
+      padding: 13px 18px;
+    }
+    .btn-ghost:hover { background: var(--blue-pale); border-color: var(--blue); }
+
+    /* ── Result ── */
+    .result-top { text-align: center; padding: 8px 0 20px; }
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 18px;
+      border-radius: 99px;
+      font-size: .8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 14px;
+    }
+    .verdict-badge.abusive  { background: #FFE8E8; color: var(--red); }
+    .verdict-badge.possible { background: #FFF0DC; color: var(--orange); }
+    .verdict-badge.ok       { background: #E3F5EB; color: var(--green); }
+
+    .result-pct {
+      font-size: 3.4rem;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -2px;
+      margin-bottom: 6px;
+    }
+    .result-pct.abusive  { color: var(--red); }
+    .result-pct.possible { color: var(--orange); }
+    .result-pct.ok       { color: var(--green); }
+
+    .result-verdict { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+    .result-caption { font-size: .87rem; color: var(--gray-600); line-height: 1.5; max-width: 420px; margin: 0 auto; }
+
+    /* ── Comparison bars ── */
+    .section-label {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--gray-600);
+      margin-bottom: 14px;
+    }
+    .bar-row { margin-bottom: 14px; }
+    .bar-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: .83rem;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    .bar-meta span { color: var(--gray-600); font-weight: 400; }
+    .bar-track {
+      height: 11px;
+      background: var(--gray-200);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+    .bf-ans    { background: var(--green); }
+    .bf-ok     { background: var(--green); }
+    .bf-over   { background: var(--red); }
+    .bf-warn   { background: var(--orange); }
+
+    /* ── Indicators ── */
+    .ind-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .ind-item.red    { background: var(--red-pale);    border-left: 4px solid var(--red); }
+    .ind-item.yellow { background: var(--orange-pale); border-left: 4px solid var(--orange); }
+    .ind-item.green  { background: var(--green-pale);  border-left: 4px solid var(--green); }
+    .ind-item.gray   { background: var(--gray-100);    border-left: 4px solid var(--gray-500); }
+    .ind-icon { font-size: 1.15rem; flex-shrink: 0; margin-top: 1px; }
+    .ind-body { font-size: .85rem; line-height: 1.55; }
+    .ind-body strong { display: block; margin-bottom: 3px; font-size: .9rem; }
+
+    /* ── Legal basis box ── */
+    .legal-box {
+      background: var(--blue-pale);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 18px;
+      margin-top: 4px;
+    }
+    .legal-box-title {
+      font-size: .72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--blue);
+      margin-bottom: 10px;
+    }
+    .legal-box ul   { list-style: none; }
+    .legal-box li   { font-size: .83rem; color: var(--gray-800); padding: 2px 0; }
+    .legal-box li::before { content: '›'; color: var(--blue); font-weight: 800; margin-right: 7px; }
+
+    /* ── CTA card ── */
+    .cta-card {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 28px 28px 24px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .cta-card h3   { font-size: 1.2rem; font-weight: 800; margin-bottom: 8px; }
+    .cta-card p    { font-size: .88rem; opacity: .9; margin-bottom: 20px; line-height: 1.55; }
+    .contacts      { display: flex; flex-direction: column; gap: 10px; }
+    .contact-pill  {
+      background: rgba(255,255,255,.15);
+      border-radius: 9px;
+      padding: 12px 16px;
+      font-size: .9rem;
+      font-weight: 600;
+      letter-spacing: .2px;
+    }
+
+    /* ── Disclaimer ── */
+    .disclaimer {
+      font-size: .75rem;
+      color: var(--gray-600);
+      text-align: center;
+      margin-top: 22px;
+      line-height: 1.6;
+    }
+
+    /* ── Info tip ── */
+    .tip {
+      background: #EBF2FF;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .82rem;
+      color: var(--blue-dark);
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+    .tip strong { color: var(--blue); }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🏥</div>
+  <h1>Calculadora de Reajuste de Plano de Saúde</h1>
+  <p>Verifique se o reajuste aplicado ao seu plano é abusivo</p>
+</div>
+
+<div class="container">
+
+  <!-- Progress stepper -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="stepper" id="stepper">
+      <div class="stepper-track"><div class="stepper-fill" id="stepperFill"></div></div>
+      <div class="step-node active" id="sn1">1</div>
+      <div class="step-node"       id="sn2">2</div>
+      <div class="step-node"       id="sn3">3</div>
+      <div class="step-node"       id="sn4">4</div>
+    </div>
+    <div class="stepper-labels">
+      <div class="stepper-label">Tipo de Plano</div>
+      <div class="stepper-label">Período do Reajuste</div>
+      <div class="stepper-label">Valores</div>
+      <div class="stepper-label">Complementar</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ STEP 1 ═════════════════════════════════ -->
+  <div class="card" id="step1">
+    <div class="card-eyebrow">Passo 1 de 4</div>
+    <div class="card-title">Qual é o tipo do seu plano de saúde?</div>
+    <div class="card-sub">A regulamentação sobre reajuste varia conforme o tipo de contratação do plano.</div>
+
+    <div class="option-grid" id="planTypeOpts">
+      <div class="opt" data-value="individual" onclick="pickPlanType(this)">
+        <div class="opt-icon">👤</div>
+        <div>
+          <div class="opt-title">Individual ou Familiar</div>
+          <div class="opt-desc">Contratado diretamente pela pessoa física. Reajuste anual regulado pela ANS com teto máximo definido por período.</div>
+        </div>
+      </div>
+      <div class="opt" data-value="coletivo_empresarial" onclick="pickPlanType(this)">
+        <div class="opt-icon">🏢</div>
+        <div>
+          <div class="opt-title">Coletivo Empresarial</div>
+          <div class="opt-desc">Contratado por empresa para seus empregados. Reajuste negociado entre operadora e empresa contratante.</div>
+        </div>
+      </div>
+      <div class="opt" data-value="coletivo_adesao" onclick="pickPlanType(this)">
+        <div class="opt-icon">🤝</div>
+        <div>
+          <div class="opt-title">Coletivo por Adesão</div>
+          <div class="opt-desc">Contratado por associação, sindicato ou entidade de classe. Reajuste com regras específicas da RN ANS 309/2012.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn btn-primary" onclick="toStep(2)">Continuar →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ STEP 2 ═════════════════════════════════ -->
+  <div class="card hidden" id="step2">
+    <div class="card-eyebrow">Passo 2 de 4</div>
+    <div class="card-title">Quando ocorreu o reajuste?</div>
+    <div class="card-sub">Informe o mês e o ano em que a mensalidade foi reajustada pela operadora.</div>
+
+    <div class="row-2">
+      <div class="fg">
+        <label>Mês do reajuste</label>
+        <select id="selMes" onchange="onPeriodChange()">
+          <option value="">Selecione</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+          <option value="3">Março</option><option value="4">Abril</option>
+          <option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option>
+          <option value="9">Setembro</option><option value="10">Outubro</option>
+          <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Ano do reajuste</label>
+        <select id="selAno" onchange="onPeriodChange()">
+          <option value="">Selecione</option>
+          <option value="2026">2026</option><option value="2025">2025</option>
+          <option value="2024">2024</option><option value="2023">2023</option>
+          <option value="2022">2022</option><option value="2021">2021</option>
+          <option value="2020">2020</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="periodPreview" class="hidden">
+      <div class="inline-info">
+        <span class="inline-info-label">Teto ANS para planos individuais neste período:</span>
+        <span class="inline-info-value" id="periodCapDisplay">—</span>
+      </div>
+    </div>
+
+    <div id="periodOutOfRange" class="tip hidden">
+      ⚠️ <strong>Período fora da base de dados.</strong> A calculadora cobre reajustes de maio/2020 em diante. Para períodos anteriores, consulte diretamente a ANS ou um advogado.
+    </div>
+
+    <div class="nav">
+      <button class="btn btn-ghost" onclick="toStep(1)">← Voltar</button>
+      <button class="btn btn-primary" onclick="toStep(3)">Continuar →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ STEP 3 ═════════════════════════════════ -->
+  <div class="card hidden" id="step3">
+    <div class="card-eyebrow">Passo 3 de 4</div>
+    <div class="card-title">Quais foram os valores da mensalidade?</div>
+    <div class="card-sub">Informe o valor exato da mensalidade imediatamente antes e depois do reajuste.</div>
+
+    <div class="fg">
+      <label>Mensalidade <strong>antes</strong> do reajuste <span class="hint">(valor anterior)</span></label>
+      <div class="curr-wrap">
+        <span class="curr-prefix">R$</span>
+        <input type="text" id="valAntes" placeholder="0,00" inputmode="numeric" oninput="fmtCurr(this); liveCalc()">
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Mensalidade <strong>depois</strong> do reajuste <span class="hint">(valor atual)</span></label>
+      <div class="curr-wrap">
+        <span class="curr-prefix">R$</span>
+        <input type="text" id="valDepois" placeholder="0,00" inputmode="numeric" oninput="fmtCurr(this); liveCalc()">
+      </div>
+    </div>
+
+    <div id="livePreview" class="hidden">
+      <div class="inline-info">
+        <span class="inline-info-label">Percentual calculado de reajuste:</span>
+        <span class="inline-info-value" id="livePreviewPct">—</span>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn btn-ghost" onclick="toStep(2)">← Voltar</button>
+      <button class="btn btn-primary" onclick="toStep(4)">Continuar →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ STEP 4 ═════════════════════════════════ -->
+  <div class="card hidden" id="step4">
+    <div class="card-eyebrow">Passo 4 de 4</div>
+    <div class="card-title">Informações complementares</div>
+    <div class="card-sub">Estes dados permitem identificar outras possíveis irregularidades além do percentual aplicado.</div>
+
+    <div class="fg">
+      <label>Idade do beneficiário principal <span class="hint">(titular do plano)</span></label>
+      <input type="number" id="inpIdade" placeholder="Ex: 48" min="0" max="120">
+    </div>
+
+    <div class="fg">
+      <label>Há quanto tempo está neste plano?</label>
+      <select id="selTempo">
+        <option value="">Selecione</option>
+        <option value="menos1">Menos de 1 ano</option>
+        <option value="1a5">1 a 5 anos</option>
+        <option value="5a10">5 a 10 anos</option>
+        <option value="mais10">Mais de 10 anos</option>
+        <option value="nao_sei">Não sei informar</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label>Houve mudança de faixa etária junto com este reajuste?</label>
+      <div class="radio-group" id="rgFaixa">
+        <label class="rpill" onclick="pickRadio('rgFaixa', this)">
+          <input type="radio" name="faixa" value="sim"> Sim — minha faixa etária mudou no mesmo período
+        </label>
+        <label class="rpill" onclick="pickRadio('rgFaixa', this)">
+          <input type="radio" name="faixa" value="nao"> Não houve mudança de faixa etária
+        </label>
+        <label class="rpill" onclick="pickRadio('rgFaixa', this)">
+          <input type="radio" name="faixa" value="nao_sei"> Não sei informar
+        </label>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Você recebeu comunicação prévia da operadora sobre o reajuste?</label>
+      <div class="radio-group" id="rgComunicacao">
+        <label class="rpill" onclick="pickRadio('rgComunicacao', this)">
+          <input type="radio" name="comunicacao" value="sim"> Sim, fui avisado com antecedência
+        </label>
+        <label class="rpill" onclick="pickRadio('rgComunicacao', this)">
+          <input type="radio" name="comunicacao" value="nao"> Não recebi nenhum aviso prévio
+        </label>
+        <label class="rpill" onclick="pickRadio('rgComunicacao', this)">
+          <input type="radio" name="comunicacao" value="nao_sei"> Não me recordo
+        </label>
+      </div>
+    </div>
+
+    <!-- Only for collective plans -->
+    <div id="secColetivo" class="hidden">
+      <div class="divider"></div>
+      <div class="fg">
+        <label>A operadora apresentou nota técnica atuarial justificando o reajuste?</label>
+        <div class="radio-group" id="rgNota">
+          <label class="rpill" onclick="pickRadio('rgNota', this)">
+            <input type="radio" name="nota" value="sim"> Sim, a nota foi apresentada
+          </label>
+          <label class="rpill" onclick="pickRadio('rgNota', this)">
+            <input type="radio" name="nota" value="nao"> Não foi apresentada / não fui informado
+          </label>
+          <label class="rpill" onclick="pickRadio('rgNota', this)">
+            <input type="radio" name="nota" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>O reajuste foi aplicado antes de completar 12 meses desde o último?</label>
+        <div class="radio-group" id="rgPrazo">
+          <label class="rpill" onclick="pickRadio('rgPrazo', this)">
+            <input type="radio" name="prazo" value="sim"> Sim, em menos de 12 meses
+          </label>
+          <label class="rpill" onclick="pickRadio('rgPrazo', this)">
+            <input type="radio" name="prazo" value="nao"> Não, respeitou o intervalo de 12 meses
+          </label>
+          <label class="rpill" onclick="pickRadio('rgPrazo', this)">
+            <input type="radio" name="prazo" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn btn-ghost" onclick="toStep(3)">← Voltar</button>
+      <button class="btn btn-primary" onclick="calcAndShow()">Ver Resultado →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ RESULT ════════════════════════════════ -->
+  <div id="stepResult" class="hidden">
+
+    <div class="card">
+      <!-- Top -->
+      <div class="result-top" id="rTop"></div>
+
+      <div class="divider"></div>
+
+      <!-- Comparison bars -->
+      <div id="rBars"></div>
+
+      <!-- Indicators -->
+      <div>
+        <div class="section-label">Análise dos Indicadores</div>
+        <div id="rIndicators"></div>
+      </div>
+
+      <!-- Legal basis -->
+      <div id="rLegal" class="hidden" style="margin-top:4px">
+        <div class="legal-box">
+          <div class="legal-box-title">Fundamentos Jurídicos Aplicáveis</div>
+          <ul id="rLegalList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-card">
+      <h3>Entenda seus direitos</h3>
+      <p>Nossa equipe analisa gratuitamente o seu caso e verifica as possibilidades de devolução de valores cobrados a maior ou revisão judicial do reajuste.</p>
+      <div class="contacts">
+        <div class="contact-pill">📱 WhatsApp: (XX) XXXXX-XXXX</div>
+        <div class="contact-pill">📧 contato@escritorio.com.br</div>
+        <div class="contact-pill">🌐 www.escritorio.com.br</div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      Esta calculadora tem caráter meramente informativo e educativo.<br>
+      O resultado não constitui parecer jurídico. Consulte um advogado especializado para análise do seu caso concreto.
+    </div>
+
+    <div style="margin-top:20px; text-align:center">
+      <button class="btn btn-ghost" onclick="resetAll()">← Fazer nova consulta</button>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+/* ═══════════════════════ DATA ═══════════════════════ */
+const ANS_CAPS = [
+  { label:'2026/2027', cap: 5.11, y1:2026, m1:5, y2:2027, m2:4 },
+  { label:'2025/2026', cap: 6.06, y1:2025, m1:5, y2:2026, m2:4 },
+  { label:'2024/2025', cap: 6.91, y1:2024, m1:5, y2:2025, m2:4 },
+  { label:'2023/2024', cap: 9.63, y1:2023, m1:5, y2:2024, m2:4 },
+  { label:'2022/2023', cap:15.50, y1:2022, m1:5, y2:2023, m2:4 },
+  { label:'2021/2022', cap:-8.19, y1:2021, m1:5, y2:2022, m2:4 },
+  { label:'2020/2021', cap: 8.14, y1:2020, m1:5, y2:2021, m2:4 },
+];
+
+/* ═══════════════════════ STATE ══════════════════════ */
+const S = {
+  planType: null,
+  mes: null, ano: null,
+  antes: null, depois: null,
+  idade: null, tempo: null,
+  faixa: null, comunicacao: null,
+  nota: null, prazo: null,
+};
+
+/* ═══════════════════════ HELPERS ════════════════════ */
+function getAnsCap(mes, ano) {
+  if (!mes || !ano) return null;
+  const m = +mes, y = +ano;
+  for (const p of ANS_CAPS) {
+    const afterStart = (y > p.y1) || (y === p.y1 && m >= p.m1);
+    const beforeEnd  = (y < p.y2) || (y === p.y2 && m <= p.m2);
+    if (afterStart && beforeEnd) return p;
+  }
+  return null;
+}
+
+function parseCurr(str) {
+  if (!str) return null;
+  const n = parseFloat(str.replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+
+function fmtCurr(inp) {
+  const raw = inp.value.replace(/[^\d]/g, '');
+  if (!raw) { inp.value = ''; return; }
+  inp.value = (parseInt(raw, 10) / 100)
+    .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getRadio(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : null;
+}
+
+function pct(before, after) {
+  return ((after - before) / before) * 100;
+}
+
+function fmtPct(n) {
+  return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+
+/* ═══════════════════════ STEP NAV ═══════════════════ */
+const STEPS = ['step1','step2','step3','step4'];
+
+function toStep(n) {
+  if (n > currentStep() && !validateStep(currentStep())) return;
+
+  STEPS.forEach((id, i) => {
+    document.getElementById(id).classList.toggle('hidden', i + 1 !== n);
+  });
+  updateStepper(n);
+
+  // Show coletivo extras in step 4
+  if (n === 4) {
+    const isCol = S.planType !== 'individual';
+    document.getElementById('secColetivo').classList.toggle('hidden', !isCol);
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function currentStep() {
+  for (let i = 0; i < STEPS.length; i++) {
+    if (!document.getElementById(STEPS[i]).classList.contains('hidden')) return i + 1;
+  }
+  return 1;
+}
+
+function updateStepper(n) {
+  for (let i = 1; i <= 4; i++) {
+    const node = document.getElementById('sn' + i);
+    node.classList.remove('active', 'done');
+    if (i < n)      node.classList.add('done');
+    else if (i === n) node.classList.add('active');
+  }
+  const fill = ((n - 1) / 3) * 100;
+  document.getElementById('stepperFill').style.width = fill + '%';
+}
+
+function validateStep(n) {
+  if (n === 1) {
+    if (!S.planType) { alert('Por favor, selecione o tipo do plano de saúde.'); return false; }
+  }
+  if (n === 2) {
+    const mes = document.getElementById('selMes').value;
+    const ano = document.getElementById('selAno').value;
+    if (!mes || !ano) { alert('Por favor, informe o mês e o ano do reajuste.'); return false; }
+    S.mes = mes; S.ano = ano;
+  }
+  if (n === 3) {
+    const a = parseCurr(document.getElementById('valAntes').value);
+    const d = parseCurr(document.getElementById('valDepois').value);
+    if (!a || !d) { alert('Por favor, informe os valores antes e depois do reajuste.'); return false; }
+    if (a <= 0 || d <= 0) { alert('Os valores devem ser maiores que zero.'); return false; }
+    S.antes  = a;
+    S.depois = d;
+  }
+  return true;
+}
+
+/* ═══════════════════════ INTERACTIONS ══════════════ */
+function pickPlanType(el) {
+  S.planType = el.dataset.value;
+  document.querySelectorAll('#planTypeOpts .opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function pickRadio(groupId, labelEl) {
+  document.querySelectorAll(`#${groupId} .rpill`).forEach(e => e.classList.remove('selected'));
+  labelEl.classList.add('selected');
+}
+
+function onPeriodChange() {
+  const mes = document.getElementById('selMes').value;
+  const ano = document.getElementById('selAno').value;
+  const preview = document.getElementById('periodPreview');
+  const oor     = document.getElementById('periodOutOfRange');
+
+  if (!mes || !ano) { preview.classList.add('hidden'); oor.classList.add('hidden'); return; }
+
+  const cap = getAnsCap(mes, ano);
+  if (cap) {
+    oor.classList.add('hidden');
+    preview.classList.remove('hidden');
+    const disp = document.getElementById('periodCapDisplay');
+    if (cap.cap < 0) {
+      disp.textContent = cap.cap.toFixed(2) + '% (redução obrigatória)';
+      disp.style.color = 'var(--green)';
+    } else {
+      disp.textContent = cap.cap.toFixed(2) + '%';
+      disp.style.color = 'var(--blue)';
+    }
+  } else {
+    preview.classList.add('hidden');
+    // If year is in our range but no period found, show out-of-range tip
+    const y = +ano;
+    if (y >= 2020 && y <= 2026) {
+      oor.classList.remove('hidden');
+    } else {
+      oor.classList.add('hidden');
+    }
+  }
+}
+
+function liveCalc() {
+  const a = parseCurr(document.getElementById('valAntes').value);
+  const d = parseCurr(document.getElementById('valDepois').value);
+  const preview = document.getElementById('livePreview');
+  const pctEl   = document.getElementById('livePreviewPct');
+
+  if (a && d && a > 0) {
+    const p = pct(a, d);
+    preview.classList.remove('hidden');
+    pctEl.textContent = fmtPct(p);
+    pctEl.style.color = p > 0 ? 'var(--red)' : 'var(--green)';
+  } else {
+    preview.classList.add('hidden');
+  }
+}
+
+/* ═══════════════════════ CALCULATE ══════════════════ */
+function calcAndShow() {
+  // Collect all state
+  S.mes          = document.getElementById('selMes').value;
+  S.ano          = document.getElementById('selAno').value;
+  S.antes        = parseCurr(document.getElementById('valAntes').value);
+  S.depois       = parseCurr(document.getElementById('valDepois').value);
+  S.idade        = parseInt(document.getElementById('inpIdade').value) || null;
+  S.tempo        = document.getElementById('selTempo').value || null;
+  S.faixa        = getRadio('faixa');
+  S.comunicacao  = getRadio('comunicacao');
+  S.nota         = getRadio('nota');
+  S.prazo        = getRadio('prazo');
+
+  // Final validation
+  if (!S.antes || !S.depois) { alert('Por favor, preencha os valores da mensalidade no Passo 3.'); return; }
+
+  const result = analyze();
+  render(result);
+
+  STEPS.forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('progressWrap').classList.add('hidden');
+  document.getElementById('stepResult').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════ ANALYSIS ═══════════════════ */
+function analyze() {
+  const { planType, mes, ano, antes, depois, idade, tempo, faixa, comunicacao, nota, prazo } = S;
+
+  const actualPct = pct(antes, depois);
+  const period    = getAnsCap(mes, ano);
+  const ansCap    = period ? period.cap : null;
+
+  let score = 0;
+  const indicators = [];
+  const legalBasis  = new Set();
+
+  // ── Indicator 1: Exceeds ANS cap (individual) ──────────────────────────
+  if (planType === 'individual') {
+    if (ansCap !== null) {
+      if (ansCap < 0 && actualPct > 0) {
+        // Period required a reduction; any positive hike is illegal
+        indicators.push({
+          cls: 'red', icon: '🚨',
+          title: 'Reajuste positivo em período de redução obrigatória',
+          desc:  `Neste período (${period.label}), a ANS determinou uma REDUÇÃO de ${Math.abs(ansCap).toFixed(2)}% nas mensalidades. Qualquer aumento de valor configura violação expressa da regulamentação.`,
+        });
+        legalBasis.add('Lei nº 9.656/1998, Art. 17 — Reajuste de planos individuais');
+        legalBasis.add('RN ANS nº 171/2008 — Índice de reajuste anual');
+        score += 5;
+      } else if (actualPct > ansCap) {
+        const excess = actualPct - ansCap;
+        indicators.push({
+          cls: 'red', icon: '🚨',
+          title: 'Reajuste acima do teto máximo da ANS',
+          desc:  `O reajuste aplicado (${fmtPct(actualPct)}) supera o limite máximo autorizado pela ANS de ${ansCap.toFixed(2)}% para o período ${period.label}. O excedente de ${excess.toFixed(2)} pontos percentuais é passível de contestação judicial e devolução dos valores pagos a maior.`,
+        });
+        legalBasis.add('Lei nº 9.656/1998, Art. 17 — Reajuste de planos individuais');
+        legalBasis.add('RN ANS nº 171/2008 — Índice de reajuste anual');
+        legalBasis.add('CDC, Art. 39, V — Cláusula abusiva');
+        score += 3;
+      } else if (ansCap >= 0) {
+        indicators.push({
+          cls: 'green', icon: '✅',
+          title: 'Percentual dentro do teto ANS',
+          desc:  `O reajuste aplicado (${fmtPct(actualPct)}) está abaixo do teto máximo autorizado pela ANS de ${ansCap.toFixed(2)}% para o período ${period.label}.`,
+        });
+      }
+    } else {
+      indicators.push({
+        cls: 'gray', icon: '❓',
+        title: 'Período não identificado na base ANS',
+        desc:  'Não foi possível identificar o teto ANS para o período informado. Consulte diretamente o site da ANS ou um advogado especializado.',
+      });
+    }
+  } else {
+    // Collective: no ANS cap, but assess level
+    if (actualPct > 30) {
+      indicators.push({
+        cls: 'red', icon: '⚠️',
+        title: 'Reajuste muito elevado para plano coletivo',
+        desc:  `O reajuste de ${fmtPct(actualPct)} é muito expressivo. Planos coletivos não têm teto definido pela ANS, mas reajustes desta magnitude exigem justificativa atuarial robusta e podem ser contestados judicialmente por falta de proporcionalidade e boa-fé contratual.`,
+      });
+      legalBasis.add('RN ANS nº 309/2012 — Reajuste de planos coletivos');
+      legalBasis.add('CC, Art. 422 — Boa-fé objetiva');
+      score += 2;
+    } else if (actualPct > 20) {
+      indicators.push({
+        cls: 'yellow', icon: '⚠️',
+        title: 'Reajuste significativo — verifique a justificativa',
+        desc:  `Para planos coletivos, o reajuste de ${fmtPct(actualPct)} deve ser acompanhado de nota técnica atuarial que o embase. Solicite formalmente esse documento à operadora.`,
+      });
+      legalBasis.add('RN ANS nº 309/2012 — Reajuste de planos coletivos');
+      score += 1;
+    } else {
+      indicators.push({
+        cls: 'gray', icon: 'ℹ️',
+        title: 'Plano coletivo — sem teto regulado pela ANS',
+        desc:  `Para planos coletivos, a ANS não estabelece teto máximo de reajuste anual. O percentual aplicado (${fmtPct(actualPct)}) deve ser avaliado junto à justificativa atuarial apresentada pela operadora.`,
+      });
+    }
+  }
+
+  // ── Indicator 2: Age bracket change concurrent ─────────────────────────
+  if (faixa === 'sim') {
+    indicators.push({
+      cls: 'red', icon: '🚨',
+      title: 'Cumulação de reajuste anual com mudança de faixa etária',
+      desc:  'A aplicação simultânea do reajuste anual com o reajuste por mudança de faixa etária no mesmo mês pode configurar prática abusiva, especialmente quando os percentuais não são discriminados de forma transparente na notificação ao consumidor.',
+    });
+    legalBasis.add('RN ANS nº 63/2003 — Variação de preços por faixa etária');
+    legalBasis.add('CDC, Art. 46 — Transparência da informação contratual');
+    score += 2;
+  } else if (faixa === 'nao_sei') {
+    indicators.push({
+      cls: 'yellow', icon: '🔍',
+      title: 'Mudança de faixa etária: não verificado',
+      desc:  'Recomenda-se verificar no contrato ou na fatura se houve mudança de faixa etária concomitante ao reajuste anual. A cumulação pode representar aumento efetivo superior ao divulgado.',
+    });
+    score += 0.5;
+  }
+
+  // ── Indicator 3: Elderly Statute — 60+ with 10+ years ─────────────────
+  if (idade !== null && idade >= 60 && tempo === 'mais10' && faixa === 'sim') {
+    indicators.push({
+      cls: 'red', icon: '⚖️',
+      title: 'Vedação expressa pelo Estatuto do Idoso',
+      desc:  `Beneficiários com 60 anos ou mais que já completaram 10 anos no mesmo plano não podem ter suas mensalidades reajustadas em razão de mudança de faixa etária. Essa proteção está prevista expressamente no Estatuto do Idoso e constitui direito irrenunciável.`,
+    });
+    legalBasis.add('Lei nº 10.741/2003 (Estatuto do Idoso), Art. 15, §3º');
+    legalBasis.add('STJ, Súmula 469 — Abusividade de cláusula etária');
+    score += 3;
+  }
+
+  // ── Indicator 4: No prior notification ────────────────────────────────
+  if (comunicacao === 'nao') {
+    indicators.push({
+      cls: 'yellow', icon: '📋',
+      title: 'Ausência de comunicação prévia',
+      desc:  'A operadora tem obrigação de comunicar o reajuste com antecedência mínima de 30 dias. A ausência de aviso prévio constitui irregularidade contratual e viola o Código de Defesa do Consumidor, podendo ensejar dano moral.',
+    });
+    legalBasis.add('CDC, Art. 46 — Eficácia de cláusulas não informadas');
+    legalBasis.add('RN ANS nº 195/2009 — Obrigações de transparência das operadoras');
+    score += 1;
+  }
+
+  // ── Indicator 5: Collective — no actuarial note ────────────────────────
+  if (planType !== 'individual' && nota === 'nao') {
+    indicators.push({
+      cls: 'red', icon: '📄',
+      title: 'Ausência de nota técnica atuarial',
+      desc:  'Para planos coletivos, a operadora é obrigada a apresentar nota técnica atuarial que justifique o percentual de reajuste negociado. A ausência deste documento torna o reajuste juridicamente questionável.',
+    });
+    legalBasis.add('RN ANS nº 309/2012, Art. 8º — Nota técnica atuarial obrigatória');
+    score += 2;
+  }
+
+  // ── Indicator 6: Collective — less than 12 months ─────────────────────
+  if (planType !== 'individual' && prazo === 'sim') {
+    indicators.push({
+      cls: 'red', icon: '📅',
+      title: 'Reajuste aplicado em prazo inferior a 12 meses',
+      desc:  'O intervalo mínimo entre reajustes é de 12 meses. A aplicação de reajuste antes desse prazo é ilegal, independentemente do percentual, e autoriza a devolução integral dos valores cobrados a maior.',
+    });
+    legalBasis.add('Lei nº 9.656/1998, Art. 17, §2º — Periodicidade mínima de reajuste');
+    legalBasis.add('RN ANS nº 309/2012 — Vedação de reajuste em menos de 12 meses');
+    score += 3;
+  }
+
+  // ── Verdict ──────────────────────────────────────────────────────────
+  let verdict, verdictCls;
+  if (score >= 3) {
+    verdict    = 'Indícios de Reajuste Abusivo';
+    verdictCls = 'abusive';
+  } else if (score >= 1) {
+    verdict    = 'Pontos que Merecem Atenção';
+    verdictCls = 'possible';
+  } else {
+    verdict    = 'Dentro dos Parâmetros Legais';
+    verdictCls = 'ok';
+  }
+
+  return { actualPct, period, ansCap, verdict, verdictCls, indicators, legalBasis: [...legalBasis], score };
+}
+
+/* ═══════════════════════ RENDER RESULT ══════════════ */
+function render(r) {
+  const { actualPct, period, ansCap, verdict, verdictCls, indicators, legalBasis } = r;
+
+  // ── Top ──
+  const badgeLabels = { abusive:'⚠️ Atenção', possible:'🔍 Verifique', ok:'✅ Verificado' };
+  const captions    = {
+    abusive:  'A análise identificou indícios significativos de abusividade no reajuste aplicado. Recomendamos consulta jurídica imediata.',
+    possible: 'A análise identificou irregularidades que merecem avaliação jurídica. Consulte um advogado para confirmar as possibilidades.',
+    ok:       'Com base nas informações fornecidas, o reajuste aparentemente está dentro dos parâmetros legais. Ainda assim, a consulta a um advogado pode esclarecer outros aspectos do contrato.',
+  };
+
+  document.getElementById('rTop').innerHTML = `
+    <div class="verdict-badge ${verdictCls}">${badgeLabels[verdictCls]}</div>
+    <div class="result-pct ${verdictCls}">${fmtPct(actualPct)}</div>
+    <div class="result-verdict">${verdict}</div>
+    <div class="result-caption">${captions[verdictCls]}</div>
+  `;
+
+  // ── Bars ──
+  let barsHTML = '';
+  if (S.planType === 'individual' && ansCap !== null) {
+    const maxVal = Math.max(Math.abs(actualPct), Math.abs(ansCap), 0.1) * 1.25;
+    const ansW   = (Math.abs(ansCap)   / maxVal * 100).toFixed(1);
+    const actW   = (Math.abs(actualPct) / maxVal * 100).toFixed(1);
+    const actCls = actualPct > ansCap ? 'bf-over' : (actualPct > ansCap * 0.9 ? 'bf-warn' : 'bf-ok');
+
+    barsHTML = `
+      <div style="margin-bottom:22px">
+        <div class="section-label">Comparação com o Teto ANS</div>
+        <div class="bar-row">
+          <div class="bar-meta"><span>Teto máximo ANS (${period.label})</span><strong>${ansCap.toFixed(2)}%</strong></div>
+          <div class="bar-track"><div class="bar-fill bf-ans" style="width:${ansW}%"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-meta"><span>Reajuste aplicado</span><strong>${fmtPct(actualPct)}</strong></div>
+          <div class="bar-track"><div class="bar-fill ${actCls}" style="width:${actW}%"></div></div>
+        </div>
+      </div>
+    `;
+  } else if (S.planType !== 'individual') {
+    barsHTML = `
+      <div style="text-align:center; padding: 12px 0 22px">
+        <div class="section-label" style="text-align:center">Percentual de Reajuste Aplicado</div>
+        <div style="font-size:2.8rem; font-weight:900; color:var(--blue); letter-spacing:-2px">${fmtPct(actualPct)}</div>
+        <div style="font-size:.82rem; color:var(--gray-600); margin-top:6px">Planos coletivos não têm teto regulado pela ANS.<br>A análise considera outros critérios de abusividade.</div>
+      </div>
+    `;
+  }
+  document.getElementById('rBars').innerHTML = barsHTML;
+
+  // ── Indicators ──
+  let indHTML = '';
+  indicators.forEach(ind => {
+    indHTML += `
+      <div class="ind-item ${ind.cls}">
+        <span class="ind-icon">${ind.icon}</span>
+        <div class="ind-body"><strong>${ind.title}</strong>${ind.desc}</div>
+      </div>
+    `;
+  });
+  document.getElementById('rIndicators').innerHTML = indHTML;
+
+  // ── Legal basis ──
+  const legalEl = document.getElementById('rLegal');
+  if (legalBasis.length > 0) {
+    document.getElementById('rLegalList').innerHTML =
+      legalBasis.map(b => `<li>${b}</li>`).join('');
+    legalEl.classList.remove('hidden');
+  } else {
+    legalEl.classList.add('hidden');
+  }
+}
+
+/* ═══════════════════════ RESET ══════════════════════ */
+function resetAll() {
+  Object.keys(S).forEach(k => S[k] = null);
+
+  // Clear inputs
+  document.querySelectorAll('.opt').forEach(e => e.classList.remove('selected'));
+  document.querySelectorAll('.rpill').forEach(e => e.classList.remove('selected'));
+  document.querySelectorAll('input[type="radio"]').forEach(e => e.checked = false);
+  ['selMes','selAno','selTempo'].forEach(id => document.getElementById(id).value = '');
+  ['valAntes','valDepois'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('inpIdade').value = '';
+
+  document.getElementById('periodPreview').classList.add('hidden');
+  document.getElementById('periodOutOfRange').classList.add('hidden');
+  document.getElementById('livePreview').classList.add('hidden');
+
+  // Show progress, hide result
+  document.getElementById('progressWrap').classList.remove('hidden');
+  document.getElementById('stepResult').classList.add('hidden');
+
+  // Back to step 1
+  toStep(1);
+}
+</script>
+</body>
+</html>
