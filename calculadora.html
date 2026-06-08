@@ -466,7 +466,7 @@
         <div class="opt-icon">🤝</div>
         <div>
           <div class="opt-title">Coletivo por Adesão</div>
-          <div class="opt-desc">Contratado por associação, sindicato ou entidade de classe. Reajuste com regras específicas da RN ANS 309/2012.</div>
+          <div class="opt-desc">Contratado por associação, sindicato ou entidade de classe via administradora de benefícios. Historicamente apresenta os maiores índices de reajuste do mercado. Regras da RN 565/2022.</div>
         </div>
       </div>
     </div>
@@ -612,6 +612,25 @@
       </div>
     </div>
 
+    <!-- Only for individual plans — pre-1999 contract -->
+    <div id="secPreAnterior1999" class="hidden">
+      <div class="divider"></div>
+      <div class="fg">
+        <label>Quando foi celebrado seu contrato de plano de saúde?</label>
+        <div class="radio-group" id="rgContrato1999">
+          <label class="rpill" onclick="pickRadio('rgContrato1999', this)">
+            <input type="radio" name="contrato1999" value="pos1999"> Após 01/01/1999 (ou adaptado à Lei 9.656/1998)
+          </label>
+          <label class="rpill" onclick="pickRadio('rgContrato1999', this)">
+            <input type="radio" name="contrato1999" value="pre1999"> Antes de 01/01/1999 — plano antigo, não adaptado
+          </label>
+          <label class="rpill" onclick="pickRadio('rgContrato1999', this)">
+            <input type="radio" name="contrato1999" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- Only for coletivo_empresarial — falso coletivo analysis -->
     <div id="secFalsoColetivo" class="hidden">
       <div class="divider"></div>
@@ -744,13 +763,6 @@
         <div id="rIndicators"></div>
       </div>
 
-      <!-- Legal basis -->
-      <div id="rLegal" class="hidden" style="margin-top:4px">
-        <div class="legal-box">
-          <div class="legal-box-title">Fundamentos Jurídicos Aplicáveis</div>
-          <ul id="rLegalList"></ul>
-        </div>
-      </div>
     </div>
 
     <!-- CTA -->
@@ -797,6 +809,7 @@ const S = {
   faixa: null, comunicacao: null,
   nota: null, prazo: null,
   nBeneficiarios: null, empregados: null, atividadeEmpresarial: null, vinculo: null,
+  contrato1999: null,
 };
 
 /* ═══════════════════════ HELPERS ════════════════════ */
@@ -850,10 +863,12 @@ function toStep(n) {
 
   // Show coletivo extras in step 4
   if (n === 4) {
-    const isCol             = S.planType !== 'individual';
-    const isColEmpresarial  = S.planType === 'coletivo_empresarial';
+    const isCol            = S.planType !== 'individual';
+    const isColEmpresarial = S.planType === 'coletivo_empresarial';
+    const isIndividual     = S.planType === 'individual';
     document.getElementById('secColetivo').classList.toggle('hidden', !isCol);
     document.getElementById('secFalsoColetivo').classList.toggle('hidden', !isColEmpresarial);
+    document.getElementById('secPreAnterior1999').classList.toggle('hidden', !isIndividual);
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -918,6 +933,9 @@ function onPeriodChange() {
 
   if (!mes || !ano) { preview.classList.add('hidden'); oor.classList.add('hidden'); return; }
 
+  // ANS cap only applies to individual plans
+  if (S.planType !== 'individual') { preview.classList.add('hidden'); oor.classList.add('hidden'); return; }
+
   const cap = getAnsCap(mes, ano);
   if (cap) {
     oor.classList.add('hidden');
@@ -975,6 +993,7 @@ function calcAndShow() {
   S.empregados           = getRadio('empregados');
   S.atividadeEmpresarial = getRadio('atividade');
   S.vinculo              = getRadio('vinculo');
+  S.contrato1999         = getRadio('contrato1999');
 
   // Final validation
   if (!S.antes || !S.depois) { alert('Por favor, preencha os valores da mensalidade no Passo 3.'); return; }
@@ -990,7 +1009,7 @@ function calcAndShow() {
 
 /* ═══════════════════════ ANALYSIS ═══════════════════ */
 function analyze() {
-  const { planType, mes, ano, antes, depois, idade, tempo, faixa, comunicacao, nota, prazo } = S;
+  const { planType, mes, ano, antes, depois, idade, tempo, faixa, comunicacao, nota, prazo, contrato1999 } = S;
 
   const actualPct = pct(antes, depois);
   const period    = getAnsCap(mes, ano);
@@ -1002,7 +1021,14 @@ function analyze() {
 
   // ── Indicator 1: Exceeds ANS cap (individual) ──────────────────────────
   if (planType === 'individual') {
-    if (ansCap !== null) {
+    if (contrato1999 === 'pre1999') {
+      indicators.push({
+        cls: 'yellow', icon: '📅',
+        title: 'Contrato anterior a 1999 — regras de reajuste específicas',
+        desc: 'Planos celebrados antes de 01/01/1999 e não adaptados à Lei 9.656/1998 não estão sujeitos ao teto de reajuste anual da ANS. As regras aplicáveis são as do contrato original, o que exige análise individualizada. Operadoras como SulAmérica, Amil, Bradesco e Itauseg têm histórico de cobranças questionáveis nessa categoria — consulte um advogado para avaliação detalhada.',
+      });
+      score += 1;
+    } else if (ansCap !== null) {
       if (ansCap < 0 && actualPct > 0) {
         // Period required a reduction; any positive hike is illegal
         indicators.push({
@@ -1043,25 +1069,22 @@ function analyze() {
     if (actualPct > 30) {
       indicators.push({
         cls: 'red', icon: '⚠️',
-        title: 'Reajuste muito elevado para plano coletivo',
-        desc:  `O reajuste de ${fmtPct(actualPct)} é muito expressivo. Planos coletivos não têm teto definido pela ANS, mas reajustes desta magnitude exigem justificativa atuarial robusta e podem ser contestados judicialmente por falta de proporcionalidade e boa-fé contratual.`,
+        title: 'Reajuste muito acima da média histórica do setor',
+        desc:  `O reajuste de ${fmtPct(actualPct)} é muito expressivo — as médias históricas do setor são de aproximadamente 15% ao ano para coletivos empresariais e 18% para coletivos por adesão. Planos coletivos não têm teto definido pela ANS, mas reajustes desta magnitude exigem justificativa atuarial robusta e podem ser contestados por falta de proporcionalidade e boa-fé contratual. Solicite formalmente a nota técnica atuarial à operadora — ela é obrigada a mantê-la por 5 anos (RN 565/2022).`,
       });
-      legalBasis.add('RN ANS nº 309/2012 — Reajuste de planos coletivos');
-      legalBasis.add('CC, Art. 422 — Boa-fé objetiva');
       score += 2;
     } else if (actualPct > 20) {
       indicators.push({
         cls: 'yellow', icon: '⚠️',
-        title: 'Reajuste significativo — verifique a justificativa',
-        desc:  `Para planos coletivos, o reajuste de ${fmtPct(actualPct)} deve ser acompanhado de nota técnica atuarial que o embase. Solicite formalmente esse documento à operadora.`,
+        title: 'Reajuste acima da média histórica — solicite a justificativa',
+        desc:  `O reajuste de ${fmtPct(actualPct)} está acima das médias históricas do setor (≈15% empresarial / ≈18% adesão). Para planos coletivos, a operadora deve apresentar nota técnica atuarial que embase o percentual. Solicite formalmente esse documento — a operadora é obrigada a mantê-lo por 5 anos (RN 565/2022, Art. 44).`,
       });
-      legalBasis.add('RN ANS nº 309/2012 — Reajuste de planos coletivos');
       score += 1;
     } else {
       indicators.push({
         cls: 'gray', icon: 'ℹ️',
         title: 'Plano coletivo — sem teto regulado pela ANS',
-        desc:  `Para planos coletivos, a ANS não estabelece teto máximo de reajuste anual. O percentual aplicado (${fmtPct(actualPct)}) deve ser avaliado junto à justificativa atuarial apresentada pela operadora.`,
+        desc:  `Para planos coletivos, a ANS não estabelece teto máximo de reajuste anual. O percentual aplicado (${fmtPct(actualPct)}) está dentro das médias históricas do setor, mas outros aspectos — como faixa etária, prazo e sinistralidade — ainda merecem verificação.`,
       });
     }
   }
@@ -1069,32 +1092,44 @@ function analyze() {
   // ── Indicator 2: Age bracket change concurrent ─────────────────────────
   if (faixa === 'sim') {
     indicators.push({
-      cls: 'red', icon: '🚨',
-      title: 'Cumulação de reajuste anual com mudança de faixa etária',
-      desc:  'A aplicação simultânea do reajuste anual com o reajuste por mudança de faixa etária no mesmo mês pode configurar prática abusiva, especialmente quando os percentuais não são discriminados de forma transparente na notificação ao consumidor.',
+      cls: 'yellow', icon: '🔍',
+      title: 'Reajuste anual cumulado com mudança de faixa etária',
+      desc:  'A cumulação em si não é ilegal, mas a operadora tem obrigação de discriminar claramente os dois percentuais na notificação. Se os valores vieram somados sem transparência, há irregularidade. Verifique se a fatura ou comunicado detalhou separadamente o percentual do reajuste anual e o da mudança de faixa — a falta dessa discriminação é argumento para contestação.',
     });
-    legalBasis.add('RN ANS nº 63/2003 — Variação de preços por faixa etária');
-    legalBasis.add('CDC, Art. 46 — Transparência da informação contratual');
     score += 2;
   } else if (faixa === 'nao_sei') {
     indicators.push({
       cls: 'yellow', icon: '🔍',
       title: 'Mudança de faixa etária: não verificado',
-      desc:  'Recomenda-se verificar no contrato ou na fatura se houve mudança de faixa etária concomitante ao reajuste anual. A cumulação pode representar aumento efetivo superior ao divulgado.',
+      desc:  'Recomenda-se conferir na fatura ou no contrato se houve mudança de faixa etária concomitante ao reajuste anual. A cumulação não discriminada pode representar aumento efetivo bem superior ao percentual divulgado.',
     });
     score += 0.5;
   }
 
-  // ── Indicator 3: Elderly Statute — 60+ with 10+ years ─────────────────
-  if (idade !== null && idade >= 60 && tempo === 'mais10' && faixa === 'sim') {
-    indicators.push({
-      cls: 'red', icon: '⚖️',
-      title: 'Vedação expressa pelo Estatuto do Idoso',
-      desc:  `Beneficiários com 60 anos ou mais que já completaram 10 anos no mesmo plano não podem ter suas mensalidades reajustadas em razão de mudança de faixa etária. Essa proteção está prevista expressamente no Estatuto do Idoso e constitui direito irrenunciável.`,
-    });
-    legalBasis.add('Lei nº 10.741/2003 (Estatuto do Idoso), Art. 15, §3º');
-    legalBasis.add('STJ, Súmula 469 — Abusividade de cláusula etária');
-    score += 3;
+  // ── Indicator 3: Elderly Statute — 60+ ────────────────────────────────
+  if (idade !== null && idade >= 60) {
+    if (faixa === 'sim' && tempo === 'mais10') {
+      indicators.push({
+        cls: 'red', icon: '⚖️',
+        title: 'Vedação expressa pelo Estatuto do Idoso',
+        desc:  `Beneficiários com 60 anos ou mais que completaram 10 anos no mesmo plano não podem ter a mensalidade reajustada por mudança de faixa etária — direito irrenunciável previsto no Estatuto do Idoso. Essa proteção autoriza a devolução de todos os valores cobrados a maior desde que passou a ser exigível.`,
+      });
+      score += 3;
+    } else if (faixa === 'sim') {
+      indicators.push({
+        cls: 'yellow', icon: '⚖️',
+        title: 'Reajuste por faixa etária após os 60 anos — verifique o tempo de permanência',
+        desc:  `Beneficiários com 60 anos ou mais têm proteção especial contra reajustes por faixa etária. Se você está neste plano há mais de 10 anos, a cobrança pode ser integralmente indevida. Verifique há quanto tempo é beneficiário.`,
+      });
+      score += 1;
+    } else if (faixa === 'nao_sei') {
+      indicators.push({
+        cls: 'yellow', icon: '🔍',
+        title: 'Beneficiário acima de 60 anos — confira se houve reajuste por faixa etária',
+        desc:  `Com 60 anos ou mais, você pode ter direito à vedação do reajuste por faixa etária — especialmente se está no plano há mais de 10 anos. Confira na fatura ou no contrato se houve esse tipo de cobrança.`,
+      });
+      score += 0.5;
+    }
   }
 
   // ── Indicator 4: No prior notification ────────────────────────────────
@@ -1102,7 +1137,7 @@ function analyze() {
     indicators.push({
       cls: 'yellow', icon: '📋',
       title: 'Ausência de comunicação prévia',
-      desc:  'A operadora tem obrigação de comunicar o reajuste com antecedência mínima de 30 dias. A ausência de aviso prévio constitui irregularidade contratual e viola o Código de Defesa do Consumidor, podendo ensejar dano moral.',
+      desc:  'A operadora tem obrigação de comunicar o reajuste com antecedência mínima de 30 dias. A ausência de aviso prévio constitui irregularidade contratual, viola o CDC e pode ensejar dano moral. Você pode solicitar formalmente à operadora todos os documentos relativos ao reajuste — ela é obrigada a mantê-los por 5 anos.',
     });
     legalBasis.add('CDC, Art. 46 — Eficácia de cláusulas não informadas');
     legalBasis.add('RN ANS nº 195/2009 — Obrigações de transparência das operadoras');
@@ -1114,9 +1149,9 @@ function analyze() {
     indicators.push({
       cls: 'red', icon: '📄',
       title: 'Ausência de nota técnica atuarial',
-      desc:  'Para planos coletivos, a operadora é obrigada a apresentar nota técnica atuarial que justifique o percentual de reajuste negociado. A ausência deste documento torna o reajuste juridicamente questionável.',
+      desc:  'Para planos coletivos, a operadora é obrigada a embasar o reajuste em nota técnica atuarial. Você tem o direito de solicitá-la formalmente por escrito — a recusa ou omissão é argumento adicional de abusividade. A operadora deve manter esse documento por 5 anos (RN 565/2022, Art. 44).',
     });
-    legalBasis.add('RN ANS nº 309/2012, Art. 8º — Nota técnica atuarial obrigatória');
+    legalBasis.add('RN ANS nº 565/2022 — Nota técnica atuarial e reajuste de planos coletivos');
     score += 2;
   }
 
@@ -1125,10 +1160,9 @@ function analyze() {
     indicators.push({
       cls: 'red', icon: '📅',
       title: 'Reajuste aplicado em prazo inferior a 12 meses',
-      desc:  'O intervalo mínimo entre reajustes é de 12 meses. A aplicação de reajuste antes desse prazo é ilegal, independentemente do percentual, e autoriza a devolução integral dos valores cobrados a maior.',
+      desc:  'O intervalo mínimo entre reajustes é de 12 meses (RN 565/2022, Art. 24). A aplicação de reajuste antes desse prazo é ilegal independentemente do percentual, e autoriza a devolução integral dos valores cobrados a maior.',
     });
-    legalBasis.add('Lei nº 9.656/1998, Art. 17, §2º — Periodicidade mínima de reajuste');
-    legalBasis.add('RN ANS nº 309/2012 — Vedação de reajuste em menos de 12 meses');
+    legalBasis.add('RN ANS nº 565/2022, Art. 24 — Vedação de reajuste em menos de 12 meses');
     score += 3;
   }
 
@@ -1161,25 +1195,27 @@ function analyze() {
       falsoSigns.push('todos os participantes têm vínculo familiar/societário entre si');
     }
 
+    if (nBeneficiarios === '1a4' || nBeneficiarios === '5a29') {
+      indicators.push({
+        cls: 'gray', icon: 'ℹ️',
+        title: 'Agrupamento de risco obrigatório para grupos com menos de 30 vidas',
+        desc: 'Para contratos coletivos com menos de 30 beneficiários, a operadora é obrigada por lei a usar um agrupamento de risco (pool de contratos similares) no cálculo do reajuste — não a sinistralidade individual do seu grupo (RN 565/2022, Art. 37). Isso significa que a operadora não pode justificar um reajuste elevado alegando que "seu grupo utilizou muito o plano".',
+      });
+    }
+
     if (falsoScore >= 4) {
       indicators.push({
         cls: 'red', icon: '🏢',
         title: 'Fortes indícios de Falso Coletivo Empresarial',
-        desc: `A análise identificou características típicas de um "falso plano coletivo empresarial": ${falsoSigns.join('; ')}. O STJ já decidiu (REsp 1.701.600/SP, Min. Nancy Andrighi) que contratos desta natureza devem ser requalificados como planos individuais/familiares. Isso garante: limite de reajuste anual fixado pela ANS, vedação de rescisão unilateral pela operadora e demais proteções do plano individual.`,
+        desc: `A análise identificou características típicas de um "falso plano coletivo empresarial": ${falsoSigns.join('; ')}. O STJ já decidiu (REsp 1.701.600/SP) que contratos desta natureza devem ser requalificados como planos individuais/familiares, garantindo: (1) teto de reajuste anual da ANS; (2) vedação de rescisão unilateral pela operadora; (3) proteções plenas do plano individual. Outros argumentos aplicáveis: o beneficiário não tem qualquer poder de barganha; o cálculo de sinistralidade não é transparente ao usuário; e há transferência indevida do risco empresarial ao consumidor — o que é vedado pelo CDC.`,
       });
-      legalBasis.add('REsp 1.701.600/SP — STJ: falso coletivo requalificado como individual/familiar');
-      legalBasis.add('RN ANS nº 557/2022, Art. 39 — Equiparação ao plano individual');
-      legalBasis.add('Lei nº 9.656/1998, Art. 13 — Proteções do plano individual');
-      legalBasis.add('CDC, Art. 51 — Nulidade de cláusulas abusivas');
       score += 4;
     } else if (falsoScore >= 2) {
       indicators.push({
         cls: 'yellow', icon: '🔍',
         title: 'Possíveis características de Falso Coletivo Empresarial',
-        desc: `Identificamos alguns sinais que podem indicar um falso plano coletivo empresarial: ${falsoSigns.join('; ')}. Recomenda-se análise jurídica aprofundada para verificar se o contrato pode ser requalificado como individual/familiar, o que ampliaria significativamente sua proteção legal.`,
+        desc: `Identificamos sinais que podem indicar um falso plano coletivo empresarial: ${falsoSigns.join('; ')}. A requalificação do contrato como individual/familiar ampliaria significativamente a sua proteção legal — recomenda-se análise jurídica aprofundada.`,
       });
-      legalBasis.add('REsp 1.701.600/SP — STJ: falso coletivo requalificado como individual/familiar');
-      legalBasis.add('RN ANS nº 557/2022, Art. 39 — Equiparação ao plano individual');
       score += 1.5;
     } else if (nBeneficiarios && empregados && atividadeEmpresarial && vinculo) {
       indicators.push({
@@ -1188,6 +1224,15 @@ function analyze() {
         desc: 'Com base nas informações fornecidas, o contrato não apresenta os sinais típicos de um falso coletivo empresarial.',
       });
     }
+  }
+
+  // ── Prescription notice ──────────────────────────────────────────────
+  if (score > 0) {
+    indicators.push({
+      cls: 'yellow', icon: '⏱️',
+      title: 'Atenção ao prazo para recuperar valores',
+      desc: 'Enquanto o contrato estiver vigente, você pode pedir a revisão do reajuste a qualquer tempo. Porém, a devolução dos valores cobrados a maior prescreve em 3 anos por parcela (STJ, Tema 610). Cada mensalidade abusiva "envelhece" 3 anos a partir do pagamento — quanto mais cedo a ação for ajuizada, maior o período de devolução.',
+    });
   }
 
   // ── Verdict ──────────────────────────────────────────────────────────
@@ -1208,7 +1253,7 @@ function analyze() {
 
 /* ═══════════════════════ RENDER RESULT ══════════════ */
 function render(r) {
-  const { actualPct, period, ansCap, verdict, verdictCls, indicators, legalBasis } = r;
+  const { actualPct, period, ansCap, verdict, verdictCls, indicators } = r;
 
   // ── Top ──
   const badgeLabels = { abusive:'⚠️ Atenção', possible:'🔍 Verifique', ok:'✅ Verificado' };
@@ -1269,15 +1314,6 @@ function render(r) {
   });
   document.getElementById('rIndicators').innerHTML = indHTML;
 
-  // ── Legal basis ──
-  const legalEl = document.getElementById('rLegal');
-  if (legalBasis.length > 0) {
-    document.getElementById('rLegalList').innerHTML =
-      legalBasis.map(b => `<li>${b}</li>`).join('');
-    legalEl.classList.remove('hidden');
-  } else {
-    legalEl.classList.add('hidden');
-  }
 }
 
 /* ═══════════════════════ RESET ══════════════════════ */
