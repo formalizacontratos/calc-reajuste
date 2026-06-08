@@ -612,6 +612,80 @@
       </div>
     </div>
 
+    <!-- Only for coletivo_empresarial — falso coletivo analysis -->
+    <div id="secFalsoColetivo" class="hidden">
+      <div class="divider"></div>
+      <div class="tip">
+        🔍 <strong>Análise de Falso Coletivo Empresarial:</strong> Planos contratados por empresas com número muito reduzido de beneficiários, sem empregados e destinados apenas a sócios e familiares podem ser reconhecidos judicialmente como planos individuais — com proteções muito mais amplas ao consumidor (REsp 1.701.600/SP — STJ).
+      </div>
+
+      <div class="fg" style="margin-top:18px">
+        <label>Quantos beneficiários existem neste plano? <span class="hint">(titulares + dependentes no total)</span></label>
+        <div class="radio-group" id="rgBeneficiarios">
+          <label class="rpill" onclick="pickRadio('rgBeneficiarios', this)">
+            <input type="radio" name="beneficiarios" value="1a4"> 1 a 4 beneficiários
+          </label>
+          <label class="rpill" onclick="pickRadio('rgBeneficiarios', this)">
+            <input type="radio" name="beneficiarios" value="5a29"> 5 a 29 beneficiários
+          </label>
+          <label class="rpill" onclick="pickRadio('rgBeneficiarios', this)">
+            <input type="radio" name="beneficiarios" value="30mais"> 30 ou mais beneficiários
+          </label>
+          <label class="rpill" onclick="pickRadio('rgBeneficiarios', this)">
+            <input type="radio" name="beneficiarios" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>O plano inclui funcionários/empregados registrados além dos sócios e seus familiares?</label>
+        <div class="radio-group" id="rgEmpregados">
+          <label class="rpill" onclick="pickRadio('rgEmpregados', this)">
+            <input type="radio" name="empregados" value="sim"> Sim — há funcionários contratados incluídos no plano
+          </label>
+          <label class="rpill" onclick="pickRadio('rgEmpregados', this)">
+            <input type="radio" name="empregados" value="nao"> Não — restrito exclusivamente a sócios e/ou seus familiares
+          </label>
+          <label class="rpill" onclick="pickRadio('rgEmpregados', this)">
+            <input type="radio" name="empregados" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>A empresa contratante exerce atividade empresarial real e regular?</label>
+        <div class="radio-group" id="rgAtividade">
+          <label class="rpill" onclick="pickRadio('rgAtividade', this)">
+            <input type="radio" name="atividade" value="sim"> Sim — empresa ativa, com funcionários e operação regular
+          </label>
+          <label class="rpill" onclick="pickRadio('rgAtividade', this)">
+            <input type="radio" name="atividade" value="nao"> Não — empresa criada ou usada apenas para contratar o plano (MEI, holding familiar, empresa sem funcionários ou inativa)
+          </label>
+          <label class="rpill" onclick="pickRadio('rgAtividade', this)">
+            <input type="radio" name="atividade" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>Os participantes do plano têm vínculo familiar ou societário entre si?</label>
+        <div class="radio-group" id="rgVinculo">
+          <label class="rpill" onclick="pickRadio('rgVinculo', this)">
+            <input type="radio" name="vinculo" value="sim"> Sim — todos são sócios e/ou parentes entre si
+          </label>
+          <label class="rpill" onclick="pickRadio('rgVinculo', this)">
+            <input type="radio" name="vinculo" value="misto"> Misturado — há sócios/familiares e também funcionários
+          </label>
+          <label class="rpill" onclick="pickRadio('rgVinculo', this)">
+            <input type="radio" name="vinculo" value="nao"> Não — a maioria são funcionários sem vínculo familiar
+          </label>
+          <label class="rpill" onclick="pickRadio('rgVinculo', this)">
+            <input type="radio" name="vinculo" value="nao_sei"> Não sei informar
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- Only for collective plans -->
     <div id="secColetivo" class="hidden">
       <div class="divider"></div>
@@ -722,6 +796,7 @@ const S = {
   idade: null, tempo: null,
   faixa: null, comunicacao: null,
   nota: null, prazo: null,
+  nBeneficiarios: null, empregados: null, atividadeEmpresarial: null, vinculo: null,
 };
 
 /* ═══════════════════════ HELPERS ════════════════════ */
@@ -775,8 +850,10 @@ function toStep(n) {
 
   // Show coletivo extras in step 4
   if (n === 4) {
-    const isCol = S.planType !== 'individual';
+    const isCol             = S.planType !== 'individual';
+    const isColEmpresarial  = S.planType === 'coletivo_empresarial';
     document.getElementById('secColetivo').classList.toggle('hidden', !isCol);
+    document.getElementById('secFalsoColetivo').classList.toggle('hidden', !isColEmpresarial);
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -892,8 +969,12 @@ function calcAndShow() {
   S.tempo        = document.getElementById('selTempo').value || null;
   S.faixa        = getRadio('faixa');
   S.comunicacao  = getRadio('comunicacao');
-  S.nota         = getRadio('nota');
-  S.prazo        = getRadio('prazo');
+  S.nota                 = getRadio('nota');
+  S.prazo                = getRadio('prazo');
+  S.nBeneficiarios       = getRadio('beneficiarios');
+  S.empregados           = getRadio('empregados');
+  S.atividadeEmpresarial = getRadio('atividade');
+  S.vinculo              = getRadio('vinculo');
 
   // Final validation
   if (!S.antes || !S.depois) { alert('Por favor, preencha os valores da mensalidade no Passo 3.'); return; }
@@ -1049,6 +1130,64 @@ function analyze() {
     legalBasis.add('Lei nº 9.656/1998, Art. 17, §2º — Periodicidade mínima de reajuste');
     legalBasis.add('RN ANS nº 309/2012 — Vedação de reajuste em menos de 12 meses');
     score += 3;
+  }
+
+  // ── Indicator 7: Falso Coletivo Empresarial ────────────────────────────
+  if (planType === 'coletivo_empresarial') {
+    const { nBeneficiarios, empregados, atividadeEmpresarial, vinculo } = S;
+    let falsoScore = 0;
+    const falsoSigns = [];
+
+    if (nBeneficiarios === '1a4') {
+      falsoScore += 2;
+      falsoSigns.push('número ínfimo de beneficiários (1 a 4)');
+    } else if (nBeneficiarios === '5a29') {
+      falsoScore += 0.5;
+      falsoSigns.push('menos de 30 beneficiários');
+    }
+
+    if (empregados === 'nao') {
+      falsoScore += 2;
+      falsoSigns.push('ausência de empregados no contrato');
+    }
+
+    if (atividadeEmpresarial === 'nao') {
+      falsoScore += 1.5;
+      falsoSigns.push('empresa sem atividade empresarial regular');
+    }
+
+    if (vinculo === 'sim') {
+      falsoScore += 1;
+      falsoSigns.push('todos os participantes têm vínculo familiar/societário entre si');
+    }
+
+    if (falsoScore >= 4) {
+      indicators.push({
+        cls: 'red', icon: '🏢',
+        title: 'Fortes indícios de Falso Coletivo Empresarial',
+        desc: `A análise identificou características típicas de um "falso plano coletivo empresarial": ${falsoSigns.join('; ')}. O STJ já decidiu (REsp 1.701.600/SP, Min. Nancy Andrighi) que contratos desta natureza devem ser requalificados como planos individuais/familiares. Isso garante: limite de reajuste anual fixado pela ANS, vedação de rescisão unilateral pela operadora e demais proteções do plano individual.`,
+      });
+      legalBasis.add('REsp 1.701.600/SP — STJ: falso coletivo requalificado como individual/familiar');
+      legalBasis.add('RN ANS nº 557/2022, Art. 39 — Equiparação ao plano individual');
+      legalBasis.add('Lei nº 9.656/1998, Art. 13 — Proteções do plano individual');
+      legalBasis.add('CDC, Art. 51 — Nulidade de cláusulas abusivas');
+      score += 4;
+    } else if (falsoScore >= 2) {
+      indicators.push({
+        cls: 'yellow', icon: '🔍',
+        title: 'Possíveis características de Falso Coletivo Empresarial',
+        desc: `Identificamos alguns sinais que podem indicar um falso plano coletivo empresarial: ${falsoSigns.join('; ')}. Recomenda-se análise jurídica aprofundada para verificar se o contrato pode ser requalificado como individual/familiar, o que ampliaria significativamente sua proteção legal.`,
+      });
+      legalBasis.add('REsp 1.701.600/SP — STJ: falso coletivo requalificado como individual/familiar');
+      legalBasis.add('RN ANS nº 557/2022, Art. 39 — Equiparação ao plano individual');
+      score += 1.5;
+    } else if (nBeneficiarios && empregados && atividadeEmpresarial && vinculo) {
+      indicators.push({
+        cls: 'green', icon: '✅',
+        title: 'Sem indícios de Falso Coletivo Empresarial',
+        desc: 'Com base nas informações fornecidas, o contrato não apresenta os sinais típicos de um falso coletivo empresarial.',
+      });
+    }
   }
 
   // ── Verdict ──────────────────────────────────────────────────────────
